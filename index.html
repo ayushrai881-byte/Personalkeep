@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ayush Operations Dashboard</title>
+    <style>
+        :root {
+            --bg-color: #f4f7f6;
+            --card-bg: #ffffff;
+            --primary: #4a90e2;
+            --danger: #e74c3c;
+            --today-color: #f39c12;
+            --today-bg: #fffdf5;
+            --done-color: #b2bec3;
+        }
+
+        body { font-family: 'Segoe UI', sans-serif; background-color: var(--bg-color); margin: 0; padding: 20px; display: flex; justify-content: center; min-height: 100vh; }
+        .container { width: 100%; max-width: 900px; }
+        .card { background: var(--card-bg); padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); position: relative; }
+
+        /* --- AUTH SCREENS --- */
+        .auth-screen { max-width: 400px; margin: 100px auto; text-align: center; }
+        .auth-screen input { width: 100%; margin-bottom: 12px; padding: 14px; border: 1px solid #ddd; border-radius: 8px; font-size: 16px; outline: none; }
+        .toggle-link { color: #95a5a6; cursor: pointer; font-size: 13px; text-decoration: none; display: block; margin-top: 15px; transition: 0.3s; }
+        .toggle-link:hover { color: var(--primary); }
+        #dashboardScreen, #registerSection, #recoverySection { display: none; }
+
+        /* --- DASHBOARD UI --- */
+        .header-row { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+        .logout-btn { background-color: #7f8c8d; padding: 6px 12px; border-radius: 6px; color: #fff; border: none; cursor: pointer; font-size: 13px; font-weight: bold; }
+        
+        .stats-bar { text-align: center; font-size: 14px; font-weight: bold; background: #eef5ff; padding: 15px; border-radius: 8px; display: flex; justify-content: space-around; margin-bottom: 20px;}
+
+        form, .grid-section { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #fdfdfd; padding: 20px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 20px;}
+        .full-width { grid-column: span 2; }
+        input, select, button, textarea { padding: 12px; border: 1px solid #ccc; border-radius: 6px; font-size: 14px; width: 100%; box-sizing: border-box; }
+        button { background-color: var(--primary); color: white; border: none; cursor: pointer; font-weight: bold; border-radius: 6px; }
+
+        /* --- TASK LIST & TODAY BOX --- */
+        .task-list { display: flex; flex-direction: column; gap: 15px; }
+        .task-item { display: flex; justify-content: space-between; align-items: center; padding: 15px; border-radius: 8px; background: #fff; border-left: 10px solid #ccc; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+        .today-box { background-color: #fffdf0 !important; border: 1px solid #f1c40f !important; border-left: 10px solid #f39c12 !important; }
+        
+        /* Category Specific Visuals */
+        .cat-colony { border-left-color: #ff7675 !important; } .cat-colony .badge-cat { background-color: #ff7675 !important; color: #fff; }
+        .cat-swaraj { border-left-color: #74b9ff !important; } .cat-swaraj .badge-cat { background-color: #74b9ff !important; color: #fff; }
+        .cat-9am { border-left-color: #a29bfe !important; } .cat-9am .badge-cat { background-color: #a29bfe !important; color: #fff; }
+        .cat-qubikals { border-left-color: #fdcb6e !important; } .cat-qubikals .badge-cat { background-color: #fdcb6e !important; color: #2d3436; }
+        .cat-personal { border-left-color: #fab1a0 !important; } .cat-personal .badge-cat { background-color: #fab1a0 !important; color: #fff; }
+        .cat-brickroute { border-left-color: #00b894 !important; } .cat-brickroute .badge-cat { background-color: #00b894 !important; color: #fff; }
+        .cat-rs { border-left-color: #81ecec !important; } .cat-rs .badge-cat { background-color: #81ecec !important; color: #2d3436; }
+
+        .task-item.done { opacity: 0.5; background: #eee; border-left-color: var(--done-color) !important; text-decoration: line-through; }
+        .task-item.done .badge-cat { background-color: var(--done-color) !important; }
+
+        .task-info { display: flex; gap: 15px; align-items: center; width: 100%; }
+        .serial-no { font-size: 16px; font-weight: bold; color: #888; min-width: 30px;}
+        .badges { display: flex; gap: 8px; font-size: 11px; flex-wrap: wrap; margin-top: 5px; }
+        .badge { padding: 3px 8px; border-radius: 4px; font-weight: bold; border: 1px solid rgba(0,0,0,0.1); }
+
+        .btn-group { display: flex; gap: 8px; }
+        .done-btn { background-color: #2ed573; padding: 8px 12px; width: auto; font-size: 12px; border-radius: 6px; }
+        .today-btn { background-color: var(--today-color); padding: 8px 12px; width: auto; font-size: 12px; border-radius: 6px; }
+        .backlog-btn { background-color: #636e72; padding: 8px 12px; width: auto; font-size: 12px; border-radius: 6px; }
+
+        .bulk-add-container { background: #f4f9f7; padding: 20px; border: 1px dashed #2ed573; border-radius: 8px; margin-top: 30px; }
+        .bulk-add-container textarea { height: 100px; margin-bottom: 10px; resize: vertical; }
+
+        @media (max-width: 768px) {
+            form, .grid-section { grid-template-columns: 1fr; }
+            .task-item { flex-direction: column; align-items: flex-start; }
+            .btn-group { width: 100%; margin-top: 10px; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="card auth-screen" id="authContainer">
+        <h2 id="authTitle">🔐 Dashboard Login</h2>
+        
+        <div id="loginSection">
+            <input type="text" id="loginUser" placeholder="Username">
+            <input type="password" id="loginPass" placeholder="Password">
+            <button onclick="handleLogin()">Login</button>
+            <span class="toggle-link" onclick="switchAuth('register')">Create New Account</span>
+            <span class="toggle-link" onclick="switchAuth('recovery')">Forgot Details</span>
+        </div>
+
+        <div id="registerSection">
+            <input type="text" id="regUser" placeholder="Username">
+            <input type="password" id="regPass" placeholder="Password">
+            <input type="text" id="regPhone" placeholder="Mobile Number">
+            <input type="text" id="regPin" placeholder="4-Digit PIN">
+            <button onclick="handleRegister()" style="background-color: #27ae60;">Register Now</button>
+            <span class="toggle-link" onclick="switchAuth('login')">Back to Login</span>
+        </div>
+
+        <div id="recoverySection">
+            <input type="text" id="recPhone" placeholder="Mobile Number">
+            <input type="text" id="recPin" placeholder="PIN">
+            <button onclick="handleRecovery()" style="background-color: #e67e22;">Recover Account</button>
+            <span class="toggle-link" onclick="switchAuth('login')">Back to Login</span>
+        </div>
+    </div>
+
+    <!-- MAIN DASHBOARD -->
+    <div class="card" id="dashboardScreen">
+        <div class="header-row">
+            <h1 id="userGreeting">🚀 Dashboard</h1>
+            <button class="logout-btn" onclick="handleLogout()">Logout</button>
+        </div>
+        
+        <div class="stats-bar">
+            <div>🌞 Today: <span id="todayCount">0</span> (<span id="todayTime">0</span> Hrs)</div>
+            <div>⏳ Pending: <span id="pendingCount">0</span> (<span id="estimatedTime">0</span> Hrs)</div>
+        </div>
+
+        <form id="taskForm">
+            <input type="text" id="taskName" class="full-width" placeholder="Task Name" required>
+            <select id="taskCategory" onchange="handleCategorySelect(this)" required></select>
+            <select id="taskPriority" required>
+                <option value="High">🔴 High</option>
+                <option value="Medium">🟡 Medium</option>
+                <option value="Low">🟢 Low</option>
+            </select>
+            <select id="taskTime" required onchange="handleTimeSelect(this)">
+                <option value="15 Min">⏱️ 15 Min</option>
+                <option value="30 Min">⏱️ 30 Min</option>
+                <option value="1 Hour">⏱️ 1 Hour</option>
+                <option value="2 Hours">⏱️ 2 Hours</option>
+                <option value="ADD_NEW">➕ Custom...</option>
+            </select>
+            <select id="taskSlot" class="full-width"></select>
+            <button type="submit" class="full-width">+ Add Task</button>
+        </form>
+
+        <div class="grid-section" style="background: #fff8f0; border-color: #ffe0b2;">
+            <input type="text" id="searchFilter" class="full-width" placeholder="🔍 Search..." onkeyup="applyFilters()">
+            <select id="filterCategory" onchange="applyFilters()"></select>
+            <select id="filterStatus" onchange="applyFilters()">
+                <option value="Today">🌞 Today's Focus</option>
+                <option value="Pending">⏳ Pending List</option>
+                <option value="Backlog">📁 Backlog</option>
+                <option value="Done">✔ Done Tasks</option>
+                <option value="All">📂 View All</option>
+            </select>
+            <select id="filterPriority" onchange="applyFilters()">
+                <option value="All">🚦 All Priorities</option>
+                <option value="High">🔴 High Only</option>
+                <option value="Medium">🟡 Medium Only</option>
+                <option value="Low">🟢 Low Only</option>
+            </select>
+        </div>
+
+        <div class="task-list" id="taskList"></div>
+
+        <div class="bulk-add-container">
+            <textarea id="bulkTasks" placeholder="Category | Time | Priority | Name"></textarea>
+            <button onclick="handleBulkAdd()" style="background-color: #27ae60;">+ Bulk Upload</button>
+        </div>
+
+        <div style="background:#f0fff4; border:1px dashed #27ae60; border-radius:8px; padding:20px; margin-top:15px; text-align:center;">
+            <p style="margin:0 0 10px; font-size:13px; color:#555;">📂 Import all tasks from your <b>Keep Notes</b> (3,973 tasks from 2 files)</p>
+            <button id="importKeepBtn" onclick="importKeepTasks()" style="background-color:#0984e3; width:auto; padding:10px 24px; font-size:14px;">⬇️ Import Keep Tasks</button>
+            <span id="importStatus" style="display:block; margin-top:8px; font-size:12px; color:#636e72;"></span>
+        </div>
+    </div>
+</div>
+
+<script>
+    let currentUser = null;
+    const ayushDefaults = [
+        { id: 1001, name: "Swaraj/Maschio urgent tasks", category: "Swaraj", time: "1 Hour", priority: "High", status: "pending", isToday: true, isBacklog: false, slotId: 99 },
+        { id: 1002, name: "Check RS Distribution stock", category: "RS Distribution", time: "2 Hours", priority: "High", status: "pending", isToday: false, isBacklog: false, slotId: 99 }
+    ];
+
+    function switchAuth(type) {
+        document.getElementById('loginSection').style.display = type === 'login' ? 'block' : 'none';
+        document.getElementById('registerSection').style.display = type === 'register' ? 'block' : 'none';
+        document.getElementById('recoverySection').style.display = type === 'recovery' ? 'block' : 'none';
+        document.getElementById('authTitle').innerText = (type === 'login') ? '🔐 Dashboard Login' : (type === 'register' ? '👤 Create Account' : '🔑 Recovery');
+    }
+
+    function handleRegister() {
+        const u = document.getElementById('regUser').value.trim();
+        const p = document.getElementById('regPass').value;
+        const ph = document.getElementById('regPhone').value.trim();
+        const pin = document.getElementById('regPin').value.trim();
+        if(!u || !p || !ph || !pin) { alert("Fill all fields"); return; }
+        let db = JSON.parse(localStorage.getItem('users_db')) || {};
+        db[u] = { password: p, phone: ph, pin: pin };
+        localStorage.setItem('users_db', JSON.stringify(db));
+        alert("Account Created!"); switchAuth('login');
+    }
+
+    function handleLogin() {
+        const u = document.getElementById('loginUser').value.trim();
+        const p = document.getElementById('loginPass').value;
+        let db = JSON.parse(localStorage.getItem('users_db')) || {};
+        
+        if(u === 'ayushrai' && p === 'Ayush123') {
+            db[u] = { password: p, phone: '8725823044', pin: '0918' };
+            localStorage.setItem('users_db', JSON.stringify(db));
+        }
+
+        if(db[u] && db[u].password === p) {
+            currentUser = u;
+            document.getElementById('authContainer').style.display='none';
+            document.getElementById('dashboardScreen').style.display='block';
+            document.getElementById('userGreeting').innerText = `🚀 ${currentUser}'s Dashboard`;
+            initializeApp();
+        } else { alert("Incorrect Username or Password"); }
+    }
+
+    function handleRecovery() {
+        const ph = document.getElementById('recPhone').value.trim();
+        const pin = document.getElementById('recPin').value.trim();
+        if(ph === '8725823044' && pin === '0918') {
+             alert(`Recovery Successful!\nUser: ayushrai\nPass: Ayush123`);
+             switchAuth('login'); return;
+        }
+        let db = JSON.parse(localStorage.getItem('users_db')) || {};
+        for(let u in db) {
+            if(db[u].phone === ph && db[u].pin === pin) {
+                alert(`User: ${u}\nPass: ${db[u].password}`); return;
+            }
+        }
+        alert("Incorrect Phone or PIN.");
+    }
+
+    function initializeApp() {
+        let cats = JSON.parse(localStorage.getItem(`cats_${currentUser}`)) || ["Swaraj", "RS Distribution", "Brickroute", "Qubikals", "9AM Trader", "Gurbaz", "Maschio", "Colony Bina", "Personal"];
+        localStorage.setItem(`cats_${currentUser}`, JSON.stringify(cats));
+        const tCat = document.getElementById('taskCategory');
+        const fCat = document.getElementById('filterCategory');
+        tCat.innerHTML = ''; fCat.innerHTML = '<option value="All">All Categories</option>';
+        cats.forEach(c => { tCat.appendChild(new Option(c, c)); fCat.appendChild(new Option(c, c)); });
+        tCat.appendChild(new Option("+ New Category", "ADD_NEW"));
+        document.getElementById('taskSlot').innerHTML = getSlotOptions(99);
+        
+        let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)) || [];
+        if(currentUser === 'ayushrai' && t.length < 2) { t = ayushDefaults; saveTasks(t); }
+        document.getElementById('filterStatus').value = 'Today';
+        applyFilters();
+    }
+
+    function getSlotOptions(selId) {
+        const slots = [{id:99, text:'🕒 Flexible'}];
+        for (let i = 8; i <= 20; i++) {
+            let h = i > 12 ? i - 12 : i;
+            let ap = i >= 12 ? 'PM' : 'AM';
+            slots.push({id: i, text: `▶ Start: ${h}:00 ${ap}`});
+        }
+        return slots.map(s => `<option value="${s.id}" ${selId==s.id?'selected':''}>${s.text}</option>`).join('');
+    }
+
+    function handleCategorySelect(s) {
+        if(s.value === 'ADD_NEW') {
+            const n = prompt("New Category:");
+            if(n) {
+                let c = JSON.parse(localStorage.getItem(`cats_${currentUser}`));
+                c.push(n); localStorage.setItem(`cats_${currentUser}`, JSON.stringify(c));
+                initializeApp(); s.value = n;
+            }
+        }
+    }
+
+    function applyFilters() {
+        let tasks = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)) || [];
+        const search = document.getElementById('searchFilter').value.toLowerCase();
+        const cat = document.getElementById('filterCategory').value;
+        const stat = document.getElementById('filterStatus').value;
+        const pri = document.getElementById('filterPriority').value;
+
+        let filtered = tasks.filter(t => {
+            const mS = t.name.toLowerCase().includes(search);
+            const mC = cat === 'All' || t.category === cat;
+            const mP = pri === 'All' || t.priority === pri;
+            let mSt = true;
+            if(stat === 'Today') mSt = t.status === 'pending' && t.isToday && !t.isBacklog;
+            else if(stat === 'Pending') mSt = t.status === 'pending' && !t.isBacklog;
+            else if(stat === 'Backlog') mSt = t.isBacklog && t.status !== 'done';
+            else if(stat === 'Done') mSt = t.status === 'done';
+            return mS && mC && mP && mSt;
+        });
+
+        let p = tasks.filter(x => x.status === 'pending' && !x.isBacklog);
+        let tod = p.filter(x => x.isToday);
+        document.getElementById('pendingCount').innerText = p.length;
+        document.getElementById('todayCount').innerText = tod.length;
+        renderTasks(filtered);
+    }
+
+    function saveTasks(t) { localStorage.setItem(`tasks_${currentUser}`, JSON.stringify(t)); applyFilters(); }
+
+    document.getElementById('taskForm').addEventListener('submit', (e) => {
+        e.preventDefault();
+        const t = { id: Date.now(), name: document.getElementById('taskName').value, category: document.getElementById('taskCategory').value, time: document.getElementById('taskTime').value, priority: document.getElementById('taskPriority').value, status:'pending', isToday:false, isBacklog:false, slotId:parseInt(document.getElementById('taskSlot').value) };
+        let all = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)) || [];
+        all.push(t); saveTasks(all); e.target.reset();
+    });
+
+    function handleBulkAdd() {
+        const text = document.getElementById('bulkTasks').value;
+        if(!text) return;
+        let all = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)) || [];
+        text.split('\n').forEach(line => {
+            const p = line.split('|').map(s => s.trim());
+            if(p.length >= 4) all.push({ id: Date.now()+Math.random(), category: p[0], time: p[1], priority: p[2], name: p[3], status:'pending', isToday:false, isBacklog:false, slotId:99 });
+        });
+        saveTasks(all); document.getElementById('bulkTasks').value = '';
+    }
+
+    function updateSlot(id, s) { let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); let x = t.find(i=>i.id===id); x.slotId=parseInt(s.value); saveTasks(t); }
+    function toggleToday(id) { let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); let x = t.find(i=>i.id===id); x.isToday=!x.isToday; x.isBacklog=false; saveTasks(t); }
+    function toggleDone(id) { let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); let x = t.find(i=>i.id===id); x.status=x.status==='done'?'pending':'done'; x.isToday=false; saveTasks(t); }
+    function moveBacklog(id) { let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); let x = t.find(i=>i.id===id); x.isBacklog=true; x.isToday=false; saveTasks(t); }
+    function restoreFromBacklog(id) { let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); let x = t.find(i=>i.id===id); x.isBacklog=false; x.isToday=false; saveTasks(t); }
+
+    function renderTasks(tasks) {
+        const list = document.getElementById('taskList');
+        list.innerHTML = tasks.length ? '' : '<p style="text-align:center; padding:20px; color:#999;">No tasks found.</p>';
+        const priOrder = { 'High': 1, 'Medium': 2, 'Low': 3 };
+        tasks.sort((a,b) => {
+            const pd = (priOrder[a.priority] || 4) - (priOrder[b.priority] || 4);
+            return pd !== 0 ? pd : (a.slotId || 99) - (b.slotId || 99);
+        }).forEach((t, i) => {
+            let c = 'cat-generic'; const lc = t.category.toLowerCase();
+            if(lc.includes('colony')) c='cat-colony'; else if(lc.includes('swaraj')) c='cat-swaraj'; else if(lc.includes('9am')) c='cat-9am'; else if(lc.includes('rs')) c='cat-rs';
+            const div = document.createElement('div');
+            div.className = `task-item ${c} ${t.isToday && t.status!=='done' && !t.isBacklog ? 'today-box' : ''} ${t.status==='done'?'done':''}`;
+            div.innerHTML = `
+                <div class="task-info">
+                    <div class="serial-no">#${i+1}</div>
+                    <div class="task-details">
+                        <h3 style="margin:0;">${t.name}</h3>
+                        <div class="badges">
+                            <span class="badge badge-cat">📁 ${t.category}</span>
+                            <span class="badge">⏱️ ${t.time}</span>
+                            <span class="badge">${t.priority}</span>
+                            ${t.status!=='done' && t.isToday && !t.isBacklog ? `<select class="badge" style="background:#fff9db; border:1px solid #f1c40f" onchange="updateSlot(${t.id}, this)">${getSlotOptions(t.slotId)}</select>` : ''}
+                        </div>
+                    </div>
+                </div>
+                <div class="btn-group">
+                    ${t.isBacklog
+                        ? `<button class="today-btn" style="background:#27ae60;" onclick="restoreFromBacklog(${t.id})">↩ Restore</button>`
+                        : `<button class="today-btn" onclick="toggleToday(${t.id})">${t.isToday?'❌ Remove':'⭐ Today'}</button>
+                           ${t.status!=='done' ? `<button class="backlog-btn" style="background:#636e72; color:#fff; padding:8px 12px; border-radius:6px; border:none; font-size:12px; cursor:pointer;" onclick="moveBacklog(${t.id})">📁 Backlog</button>` : ''}`
+                    }
+                    <button class="done-btn" onclick="toggleDone(${t.id})">✔ Done</button>
+                </div>`;
+            list.appendChild(div);
+        });
+    }
+
+    function handleLogout() { currentUser=null; document.getElementById('authContainer').style.display='block'; document.getElementById('dashboardScreen').style.display='none'; }
+
+    async function importKeepTasks() {
+        const btn = document.getElementById('importKeepBtn');
+        const status = document.getElementById('importStatus');
+        btn.disabled = true; btn.innerText = '⏳ Importing...';
+        try {
+            const res = await fetch('imported_tasks.json');
+            if (!res.ok) throw new Error('File not found');
+            const data = await res.json();
+            let existing = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)) || [];
+            const existingNames = new Set(existing.map(t => t.name.toLowerCase().trim()));
+            let added = 0;
+            data.forEach(item => {
+                const key = item.name.toLowerCase().trim();
+                if (!existingNames.has(key)) {
+                    existing.push({
+                        id: Date.now() + Math.random(),
+                        name: item.name,
+                        category: item.category,
+                        time: '30 Min',
+                        priority: 'Medium',
+                        status: 'pending',
+                        isToday: false,
+                        isBacklog: false,
+                        slotId: 99
+                    });
+                    existingNames.add(key);
+                    added++;
+                }
+            });
+            saveTasks(existing);
+            btn.innerText = '✅ Imported!';
+            btn.style.background = '#27ae60';
+            status.innerText = `${added} new tasks added (${data.length - added} duplicates skipped)`;
+        } catch(e) {
+            btn.disabled = false; btn.innerText = '⬇️ Import Keep Tasks';
+            status.innerText = '❌ Error: ' + e.message;
+        }
+    }
+    function handleTimeSelect(s) { if(s.value === 'ADD_NEW') { const t = prompt("Hrs:"); if(t) { s.add(new Option(`${t} Hrs`, `${t} Hrs`), s.options.length-1); s.value=`${t} Hrs`; } } }
+</script>
+</body>
+</html>
