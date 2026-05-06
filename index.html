@@ -31,6 +31,9 @@
         .logout-btn { background-color: #7f8c8d; padding: 6px 12px; border-radius: 6px; color: #fff; border: none; cursor: pointer; font-size: 13px; font-weight: bold; }
         
         .stats-bar { text-align: center; font-size: 14px; font-weight: bold; background: #eef5ff; padding: 15px; border-radius: 8px; display: flex; justify-content: space-around; margin-bottom: 20px;}
+        .delete-btn { background-color: #d63031 !important; padding: 8px 12px; width: auto; font-size: 12px; border-radius: 6px; color:#fff; border:none; cursor:pointer; }
+        #toast { position:fixed; bottom:30px; left:50%; transform:translateX(-50%) translateY(100px); background:#2d3436; color:#fff; padding:12px 24px; border-radius:8px; font-size:14px; z-index:9999; transition: transform 0.3s ease, opacity 0.3s ease; opacity:0; pointer-events:none; }
+        #toast.show { transform:translateX(-50%) translateY(0); opacity:1; }
 
         form, .grid-section { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; background: #fdfdfd; padding: 20px; border: 1px solid #eee; border-radius: 8px; margin-bottom: 20px;}
         .full-width { grid-column: span 2; }
@@ -113,8 +116,8 @@
         </div>
         
         <div class="stats-bar">
-            <div>🌞 Today: <span id="todayCount">0</span> (<span id="todayTime">0</span> Hrs)</div>
-            <div>⏳ Pending: <span id="pendingCount">0</span> (<span id="estimatedTime">0</span> Hrs)</div>
+            <div>🌞 Today: <span id="todayCount">0</span> (<span id="todayTime">0 Hrs</span>)</div>
+            <div>⏳ Pending: <span id="pendingCount">0</span> (<span id="estimatedTime">0 Hrs</span>)</div>
         </div>
 
         <form id="taskForm">
@@ -151,6 +154,13 @@
                 <option value="High">🔴 High Only</option>
                 <option value="Medium">🟡 Medium Only</option>
                 <option value="Low">🟢 Low Only</option>
+            </select>
+            <select id="filterTime" onchange="applyFilters()" class="full-width">
+                <option value="All">⏱️ All Durations</option>
+                <option value="lt1">⚡ Less than 1 Hour</option>
+                <option value="1to4">🕐 1 – 4 Hours</option>
+                <option value="4to8">🕓 4 Hours – 1 Day (8 hrs)</option>
+                <option value="gt8">📅 More than 1 Day</option>
             </select>
         </div>
 
@@ -242,7 +252,7 @@
         
         let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)) || [];
         if(currentUser === 'ayushrai' && t.length < 2) { t = ayushDefaults; saveTasks(t); }
-        document.getElementById('filterStatus').value = 'Today';
+        document.getElementById('filterStatus').value = 'Pending';
         applyFilters();
     }
 
@@ -267,12 +277,22 @@
         }
     }
 
+    function parseHrs(t) {
+        if (!t) return 0.5;
+        const tl = t.toLowerCase();
+        if (tl.includes('15 min')) return 0.25;
+        if (tl.includes('30 min')) return 0.5;
+        const m = tl.match(/([\d.]+)/);
+        return m ? parseFloat(m[1]) : 0.5;
+    }
+
     function applyFilters() {
         let tasks = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)) || [];
         const search = document.getElementById('searchFilter').value.toLowerCase();
         const cat = document.getElementById('filterCategory').value;
         const stat = document.getElementById('filterStatus').value;
         const pri = document.getElementById('filterPriority').value;
+        const tim = document.getElementById('filterTime').value;
 
         let filtered = tasks.filter(t => {
             const mS = t.name.toLowerCase().includes(search);
@@ -283,13 +303,32 @@
             else if(stat === 'Pending') mSt = t.status === 'pending' && !t.isBacklog;
             else if(stat === 'Backlog') mSt = t.isBacklog && t.status !== 'done';
             else if(stat === 'Done') mSt = t.status === 'done';
-            return mS && mC && mP && mSt;
+            let mT = true;
+            if (tim !== 'All') {
+                const h = parseHrs(t.time);
+                if (tim === 'lt1') mT = h < 1;
+                else if (tim === '1to4') mT = h >= 1 && h <= 4;
+                else if (tim === '4to8') mT = h > 4 && h <= 8;
+                else if (tim === 'gt8') mT = h > 8;
+            }
+            return mS && mC && mP && mSt && mT;
         });
 
         let p = tasks.filter(x => x.status === 'pending' && !x.isBacklog);
         let tod = p.filter(x => x.isToday);
         document.getElementById('pendingCount').innerText = p.length;
         document.getElementById('todayCount').innerText = tod.length;
+
+        // Calculate hours
+        function fmtTime(hrs) {
+            if (hrs < 24) return hrs % 1 === 0 ? `${hrs} Hrs` : `${hrs.toFixed(1)} Hrs`;
+            const days = (hrs / 8).toFixed(1);
+            return `~${days} Days`;
+        }
+        const todHrs = tod.reduce((s, x) => s + parseHrs(x.time), 0);
+        const pendHrs = p.reduce((s, x) => s + parseHrs(x.time), 0);
+        document.getElementById('todayTime').innerText = fmtTime(todHrs);
+        document.getElementById('estimatedTime').innerText = fmtTime(pendHrs);
         renderTasks(filtered);
     }
 
@@ -316,8 +355,10 @@
     function updateSlot(id, s) { let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); let x = t.find(i=>i.id===id); x.slotId=parseInt(s.value); saveTasks(t); }
     function toggleToday(id) { let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); let x = t.find(i=>i.id===id); x.isToday=!x.isToday; x.isBacklog=false; saveTasks(t); }
     function toggleDone(id) { let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); let x = t.find(i=>i.id===id); x.status=x.status==='done'?'pending':'done'; x.isToday=false; saveTasks(t); }
-    function moveBacklog(id) { let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); let x = t.find(i=>i.id===id); x.isBacklog=true; x.isToday=false; saveTasks(t); }
+    function moveBacklog(id) { let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); let x = t.find(i=>i.id===id); x.isBacklog=true; x.isToday=false; saveTasks(t); showToast(`📁 "${x.name.substring(0,30)}" moved to Backlog`); }
     function restoreFromBacklog(id) { let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); let x = t.find(i=>i.id===id); x.isBacklog=false; x.isToday=false; saveTasks(t); }
+    function deleteTask(id) { if(!confirm('Delete this task permanently?')) return; let t = JSON.parse(localStorage.getItem(`tasks_${currentUser}`)); t = t.filter(i=>i.id!==id); saveTasks(t); }
+    function showToast(msg) { const el = document.getElementById('toast'); el.innerText = msg; el.classList.add('show'); setTimeout(()=>el.classList.remove('show'), 3000); }
 
     function renderTasks(tasks) {
         const list = document.getElementById('taskList');
@@ -346,7 +387,8 @@
                 </div>
                 <div class="btn-group">
                     ${t.isBacklog
-                        ? `<button class="today-btn" style="background:#27ae60;" onclick="restoreFromBacklog(${t.id})">↩ Restore</button>`
+                        ? `<button class="today-btn" style="background:#27ae60;" onclick="restoreFromBacklog(${t.id})">↩ Restore</button>
+                           <button class="delete-btn" onclick="deleteTask(${t.id})">🗑 Delete</button>`
                         : `<button class="today-btn" onclick="toggleToday(${t.id})">${t.isToday?'❌ Remove':'⭐ Today'}</button>
                            ${t.status!=='done' ? `<button class="backlog-btn" style="background:#636e72; color:#fff; padding:8px 12px; border-radius:6px; border:none; font-size:12px; cursor:pointer;" onclick="moveBacklog(${t.id})">📁 Backlog</button>` : ''}`
                     }
@@ -398,5 +440,6 @@
     }
     function handleTimeSelect(s) { if(s.value === 'ADD_NEW') { const t = prompt("Hrs:"); if(t) { s.add(new Option(`${t} Hrs`, `${t} Hrs`), s.options.length-1); s.value=`${t} Hrs`; } } }
 </script>
+<div id="toast"></div>
 </body>
 </html>
